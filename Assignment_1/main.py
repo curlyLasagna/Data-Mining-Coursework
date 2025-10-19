@@ -140,8 +140,9 @@ def _(X, elbow_chart):
 
 
 @app.cell
-def _(X, simple_bar_chart):
-    simple_bar_chart(X, col="horsepower")
+def _(X, X_train, simple_bar_chart):
+    for X_col in X_train.select_dtypes(include=["float"]).columns.to_list():
+        simple_bar_chart(X, col=X_col).show()
     return
 
 
