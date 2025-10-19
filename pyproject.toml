@@ -1,0 +1,16 @@
+[project]
+name = "cosc757-datamining"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13.5"
+dependencies = [
+    "altair>=5.5.0",
+    "ipython>=9.6.0",
+    "marimo>=0.16.5",
+    "numpy>=2.3.3",
+    "pandas>=2.3.3",
+    "ruff>=0.14.1",
+    "scikit-learn>=1.7.2",
+    "ucimlrepo>=0.0.7",
+]
