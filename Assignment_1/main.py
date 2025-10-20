@@ -11,14 +11,22 @@ def _():
     import altair as alt
     import numpy as np
     from ucimlrepo import fetch_ucirepo
-    from sklearn.preprocessing import OrdinalEncoder, StandardScaler
+    from sklearn.preprocessing import (
+        OrdinalEncoder,
+        StandardScaler,
+        MinMaxScaler,
+        FunctionTransformer,
+    )
     from sklearn.model_selection import train_test_split
     from sklearn.cluster import KMeans
     from sklearn.pipeline import make_pipeline
     from sklearn.compose import make_column_transformer
     from sklearn.linear_model import LinearRegression
+    from scipy.stats import skew
     return (
+        FunctionTransformer,
         KMeans,
+        LinearRegression,
         OrdinalEncoder,
         StandardScaler,
         alt,
@@ -26,7 +34,9 @@ def _():
         make_column_transformer,
         make_pipeline,
         mo,
+        np,
         pd,
+        skew,
         train_test_split,
     )
 
@@ -50,7 +60,7 @@ def _(fetch_ucirepo):
 def _(X, train_test_split, y):
     # Split test and train datasets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-    return (X_train,)
+    return X_train, y_train
 
 
 @app.cell
@@ -86,7 +96,22 @@ def _(KMeans, alt, pd, y):
             )
             .properties(title=f"Bar Chart of {column}")
         )
-        return chart
+
+        kde = (
+            alt.Chart(df)
+            .transform_density(
+                density=column,  
+                as_=[column, "density"],
+            )
+            .mark_line(strokeWidth=3, color="darkred")
+            .encode(
+                x=alt.X(column, title=column),
+                y=alt.Y("density:Q", axis=None),
+                tooltip=[column, "density:Q"],
+            )
+        )
+
+        return alt.layer(chart, kde).resolve_scale(y="independent")
 
 
     def scatter_plot(df: pd.DataFrame, **kwargs: str) -> alt.Chart:
@@ -147,6 +172,12 @@ def _(X, X_train, simple_bar_chart):
 
 
 @app.cell
+def _(X, simple_bar_chart):
+    simple_bar_chart(X, col="displacement").show()
+    return
+
+
+@app.cell
 def _(X, scatter_plot, y):
     scatter_plot(X.join(y), col="horsepower", y="mpg")
     return
@@ -162,6 +193,20 @@ def _(X, scatter_plot, y):
 def _(X, scatter_plot, y):
     scatter_plot(X.join(y), col="model_year", y="mpg")
     return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## Normal distribution""")
+    return
+
+
+@app.cell
+def _(FunctionTransformer, np):
+    log_transformer = FunctionTransformer(np.log, feature_names_out='one-to-one')
+    sqrt_transformer = FunctionTransformer(np.sqrt, feature_names_out='one-to-one')
+    inverse_sqrt_transformer = FunctionTransformer(lambda n: 1/np.sqrt(n), feature_names_out='one-to-one')
+    return inverse_sqrt_transformer, log_transformer, sqrt_transformer
 
 
 @app.cell
@@ -186,13 +231,28 @@ def _(mo):
 
 
 @app.cell
+def _(X_train):
+    X_train.select_dtypes(include=["float"]).columns.to_list()
+    return
+
+
+@app.cell
 def _(
     OrdinalEncoder,
     StandardScaler,
     X_train,
+    inverse_sqrt_transformer,
+    log_transformer,
     make_column_transformer,
     make_pipeline,
+    sqrt_transformer,
 ):
+    # Normal distribution pipelines
+    acceleration_log = make_pipeline(log_transformer)
+    acceleration_sqrt = make_pipeline(sqrt_transformer)
+    acceleration_inverse_sqrt = make_pipeline(inverse_sqrt_transformer)
+
+    # Normalization pipelines
     numerical_pipeline = make_pipeline(StandardScaler())
     categorical_pipeline = make_pipeline(OrdinalEncoder())
 
@@ -202,7 +262,9 @@ def _(
     categorical_cols = ["cylinders", "model_year", "origin"]
 
     pre_processor = make_column_transformer(
-        (numerical_pipeline, numerical_cols), (categorical_pipeline, categorical_cols)
+        (acceleration_sqrt, ["acceleration"]),
+        (numerical_pipeline, numerical_cols),
+        (categorical_pipeline, categorical_cols),
     )
     return (pre_processor,)
 
@@ -212,9 +274,34 @@ def _(X_train, pd, pre_processor):
     pre_processed_df = pd.DataFrame(
         data=pre_processor.fit_transform(X=X_train),
         columns=pre_processor.get_feature_names_out(),
-        index=X_train.index
+        index=X_train.index,
     )
     return (pre_processed_df,)
+
+
+@app.cell
+def _(pre_processed_df):
+    pre_processed_df
+    return
+
+
+@app.cell
+def _(pre_processed_df, simple_bar_chart):
+    simple_bar_chart(pre_processed_df, col="pipeline-1__acceleration")
+    return
+
+
+@app.cell
+def _(LinearRegression, pre_processed_df, y_train):
+    le = LinearRegression()
+    le.fit(X=pre_processed_df, y=y_train).score(pre_processed_df, )
+    return
+
+
+@app.cell
+def _(pre_processed_df, skew):
+    skew(pre_processed_df["pipeline-1__acceleration"])
+    return
 
 
 @app.cell
