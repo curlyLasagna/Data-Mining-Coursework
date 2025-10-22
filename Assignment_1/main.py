@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.16.5"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -16,15 +16,18 @@ def _():
         StandardScaler,
         MinMaxScaler,
         FunctionTransformer,
+        KBinsDiscretizer,
     )
     from sklearn.model_selection import train_test_split
     from sklearn.cluster import KMeans
     from sklearn.pipeline import make_pipeline
     from sklearn.compose import make_column_transformer
     from sklearn.linear_model import LinearRegression
-    from scipy.stats import skew
+    from scipy.stats import skew, probplot, kurtosis, shapiro
+    from sklearn.metrics import mean_absolute_error, root_mean_squared_error
     return (
         FunctionTransformer,
+        KBinsDiscretizer,
         KMeans,
         LinearRegression,
         OrdinalEncoder,
@@ -33,10 +36,13 @@ def _():
         fetch_ucirepo,
         make_column_transformer,
         make_pipeline,
+        mean_absolute_error,
         mo,
         np,
         pd,
-        skew,
+        probplot,
+        root_mean_squared_error,
+        shapiro,
         train_test_split,
     )
 
@@ -60,7 +66,13 @@ def _(fetch_ucirepo):
 def _(X, train_test_split, y):
     # Split test and train datasets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-    return X_train, y_train
+    return X_test, X_train, y_test, y_train
+
+
+@app.cell
+def _(X_train):
+    X_train
+    return
 
 
 @app.cell
@@ -70,7 +82,7 @@ def _(mo):
 
 
 @app.cell
-def _(KMeans, alt, pd, y):
+def _(KMeans, alt, pd, probplot, y):
     def simple_bar_chart(df: pd.DataFrame, **kwargs: str) -> alt.Chart:
         """
         Creates a simple bar chart of a single categorical column.
@@ -100,7 +112,7 @@ def _(KMeans, alt, pd, y):
         kde = (
             alt.Chart(df)
             .transform_density(
-                density=column,  
+                density=column,
                 as_=[column, "density"],
             )
             .mark_line(strokeWidth=3, color="darkred")
@@ -128,15 +140,57 @@ def _(KMeans, alt, pd, y):
                 y=alt.Y(target_var, title=y),
                 tooltip=[column, target_var],
             )
-            .properties(title=f"{column} x {target_var}")
+            .properties(title=f"{column} x {target_var}", width=1000)
         )
+        return chart
+
+
+    def qq_plot(data, title: str) -> alt.Chart:
+        (osm, osr), (slope, intercept, r) = probplot(
+            pd.Series(data), dist="norm", plot=None
+        )
+
+        qq_df = pd.DataFrame(
+            {"Theoretical Quantiles (Z-Score)": osm, "Sample Quantiles": osr}
+        )
+
+        line_df = pd.DataFrame(
+            {
+                "Theoretical Quantiles (Z-Score)": [min(osm), max(osm)],
+                "Reference Line": [
+                    min(osm) * slope + intercept,
+                    max(osm) * slope + intercept,
+                ],
+            }
+        )
+
+        scatter = (
+            alt.Chart(qq_df)
+            .mark_circle(size=60, color="#10B981")
+            .encode(
+                x=alt.X(
+                    "Theoretical Quantiles (Z-Score)", axis=alt.Axis(grid=True)
+                ),
+                y=alt.Y("Sample Quantiles"),
+                tooltip=["Theoretical Quantiles (Z-Score)", "Sample Quantiles"],
+            )
+        )
+
+        line = (
+            alt.Chart(line_df)
+            .mark_line(color="#EF4444", strokeWidth=3)
+            .encode(x="Theoretical Quantiles (Z-Score)", y="Reference Line")
+        )
+
+        chart = (scatter + line).properties(title=title).interactive()
+
         return chart
 
 
     def elbow_chart(df: pd.DataFrame, k_range) -> alt.Chart:
         wcss = []
         for k in k_range:
-            kmeans = KMeans(n_clusters=k).fit(df)
+            kmeans = KMeans(n_clusters=k).fit(df[["weight"]])
             wcss.append(kmeans.inertia_)
 
         elbow_df = pd.DataFrame({"K": k_range, "Inertia": wcss})
@@ -155,12 +209,12 @@ def _(KMeans, alt, pd, y):
         points = chart.mark_point(size=60, filled=True, color="red")
         elbow_point = elbow_df[elbow_df["K"] == 5]
         return (line + points).interactive()
-    return elbow_chart, scatter_plot, simple_bar_chart
+    return elbow_chart, qq_plot, scatter_plot, simple_bar_chart
 
 
 @app.cell
-def _(X, elbow_chart):
-    elbow_chart(X, range(1, 10))
+def _(X_train, elbow_chart):
+    elbow_chart(X_train, range(2, 15)).save(fp="elbow_weight.png", scale_factor=2)
     return
 
 
@@ -172,14 +226,18 @@ def _(X, X_train, simple_bar_chart):
 
 
 @app.cell
-def _(X, simple_bar_chart):
-    simple_bar_chart(X, col="displacement").show()
+def _(X_train, simple_bar_chart):
+    simple_bar_chart(X_train, col="displacement").save(
+        "displacement_bar.png", scale_factor=2
+    )
     return
 
 
 @app.cell
 def _(X, scatter_plot, y):
-    scatter_plot(X.join(y), col="horsepower", y="mpg")
+    scatter_plot(X.join(y), col="horsepower", y="mpg").save(
+        fp="horsepower_x_mpg.png", scale_factor=2
+    )
     return
 
 
@@ -191,7 +249,9 @@ def _(X, scatter_plot, y):
 
 @app.cell
 def _(X, scatter_plot, y):
-    scatter_plot(X.join(y), col="model_year", y="mpg")
+    scatter_plot(X.join(y), col="model_year", y="mpg").save(
+        fp="model_year_x_mpg.png", scale_factor=2
+    )
     return
 
 
@@ -203,9 +263,11 @@ def _(mo):
 
 @app.cell
 def _(FunctionTransformer, np):
-    log_transformer = FunctionTransformer(np.log, feature_names_out='one-to-one')
-    sqrt_transformer = FunctionTransformer(np.sqrt, feature_names_out='one-to-one')
-    inverse_sqrt_transformer = FunctionTransformer(lambda n: 1/np.sqrt(n), feature_names_out='one-to-one')
+    log_transformer = FunctionTransformer(np.log, feature_names_out="one-to-one")
+    sqrt_transformer = FunctionTransformer(np.sqrt, feature_names_out="one-to-one")
+    inverse_sqrt_transformer = FunctionTransformer(
+        lambda n: 1 / np.sqrt(n), feature_names_out="one-to-one"
+    )
     return inverse_sqrt_transformer, log_transformer, sqrt_transformer
 
 
@@ -238,6 +300,7 @@ def _(X_train):
 
 @app.cell
 def _(
+    KBinsDiscretizer,
     OrdinalEncoder,
     StandardScaler,
     X_train,
@@ -247,66 +310,112 @@ def _(
     make_pipeline,
     sqrt_transformer,
 ):
-    # Normal distribution pipelines
-    acceleration_log = make_pipeline(log_transformer)
-    acceleration_sqrt = make_pipeline(sqrt_transformer)
-    acceleration_inverse_sqrt = make_pipeline(inverse_sqrt_transformer)
-
-    # Normalization pipelines
+    # Rescaling pipelines
     numerical_pipeline = make_pipeline(StandardScaler())
     categorical_pipeline = make_pipeline(OrdinalEncoder())
 
-    numerical_cols = X_train.select_dtypes(include=["float"]).columns.to_list() + [
-        "weight"
-    ]
+    # Discretization pipelines
+    kbins_uniform_pipeline = make_pipeline(
+        KBinsDiscretizer(n_bins=9, strategy="uniform", encode='ordinal')
+    )
+    kbins_kmeans_pipeline = make_pipeline(
+        KBinsDiscretizer(n_bins=4, strategy="kmeans")
+    )
+
+    # Normality pipelines
+    displacement_log = make_pipeline(log_transformer)
+    displacement_sqrt = make_pipeline(sqrt_transformer)
+    displacement_inverse_sqrt = make_pipeline(inverse_sqrt_transformer)
+
+    numerical_cols = X_train.select_dtypes(include=["float"]).columns.to_list()
     categorical_cols = ["cylinders", "model_year", "origin"]
 
     pre_processor = make_column_transformer(
-        (acceleration_sqrt, ["acceleration"]),
         (numerical_pipeline, numerical_cols),
         (categorical_pipeline, categorical_cols),
+        (kbins_kmeans_pipeline, ["weight"]),
+        (displacement_log, ["displacement"]),
     )
-    return (pre_processor,)
+    return (
+        displacement_inverse_sqrt,
+        displacement_log,
+        displacement_sqrt,
+        pre_processor,
+    )
 
 
 @app.cell
-def _(X_train, pd, pre_processor):
-    pre_processed_df = pd.DataFrame(
+def _(X_test, X_train, pd, pre_processor):
+    pre_processed_train = pd.DataFrame(
         data=pre_processor.fit_transform(X=X_train),
         columns=pre_processor.get_feature_names_out(),
         index=X_train.index,
     )
-    return (pre_processed_df,)
+
+    pre_processed_test = pd.DataFrame(
+        data=pre_processor.fit_transform(X=X_test),
+        columns=pre_processor.get_feature_names_out(),
+        index=X_test.index,
+    )
+    return pre_processed_test, pre_processed_train
+
+
+@app.function
+def shapiro_result(res, trans):
+    return (
+        print(f"{trans} Sample looks Gaussian (fail to reject H0)")
+        if res.pvalue > 0.05
+        else print(f"{trans} Sample does not look Gaussian (reject H0)")
+    )
 
 
 @app.cell
-def _(pre_processed_df):
-    pre_processed_df
+def _(
+    X,
+    displacement_inverse_sqrt,
+    displacement_log,
+    displacement_sqrt,
+    make_column_transformer,
+    qq_plot,
+    shapiro,
+):
+    for k, v in {
+        "log": displacement_log,
+        "sqrt": displacement_sqrt,
+        "in_sqrt": displacement_inverse_sqrt,
+    }.items():
+        trans_arr = make_column_transformer((v, ["displacement"])).fit_transform(X)
+
+        shapiro_result(res=shapiro(trans_arr), trans=k)
+
+        qq_plot(data=trans_arr.flatten(), title=k).show()
+        # .save(f"{k}_transform.png", scale_factor=2)
     return
 
 
 @app.cell
-def _(pre_processed_df, simple_bar_chart):
-    simple_bar_chart(pre_processed_df, col="pipeline-1__acceleration")
-    return
+def _(
+    LinearRegression,
+    mean_absolute_error,
+    pre_processed_test,
+    pre_processed_train,
+    root_mean_squared_error,
+    y_test,
+    y_train,
+):
+    def training_metrics():
+        le = LinearRegression().fit(X=pre_processed_train, y=y_train)
+        y_pred = le.predict(pre_processed_test)
+        r2 = le.score(pre_processed_test, y_test)
+        mae = mean_absolute_error(y_true=y_test, y_pred=y_pred)
+        rmse = root_mean_squared_error(y_true=y_test, y_pred=y_pred)
+        return {"r2": r2, "mae": mae, "rmse": rmse}
+    return (training_metrics,)
 
 
 @app.cell
-def _(LinearRegression, pre_processed_df, y_train):
-    le = LinearRegression()
-    le.fit(X=pre_processed_df, y=y_train).score(pre_processed_df, )
-    return
-
-
-@app.cell
-def _(pre_processed_df, skew):
-    skew(pre_processed_df["pipeline-1__acceleration"])
-    return
-
-
-@app.cell
-def _(pre_processed_df):
-    pre_processed_df
+def _(training_metrics):
+    training_metrics()
     return
 
 
