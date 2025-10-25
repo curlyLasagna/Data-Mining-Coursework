@@ -70,8 +70,14 @@ def _(X, train_test_split, y):
 
 
 @app.cell
-def _(X_train):
-    X_train
+def _(X):
+    X
+    return
+
+
+@app.cell
+def _(X):
+    X
     return
 
 
@@ -219,6 +225,12 @@ def _(X_train, elbow_chart):
 
 
 @app.cell
+def _(X_train):
+    X_train.select_dtypes(include=["float"]).columns.to_list()
+    return
+
+
+@app.cell
 def _(X, X_train, simple_bar_chart):
     for X_col in X_train.select_dtypes(include=["float"]).columns.to_list():
         simple_bar_chart(X, col=X_col).show()
@@ -226,18 +238,20 @@ def _(X, X_train, simple_bar_chart):
 
 
 @app.cell
+def _(pre_processed_train, simple_bar_chart):
+    simple_bar_chart(pre_processed_train, col="pipeline-1__displacement")
+    return
+
+
+@app.cell
 def _(X_train, simple_bar_chart):
-    simple_bar_chart(X_train, col="displacement").save(
-        "displacement_bar.png", scale_factor=2
-    )
+    simple_bar_chart(X_train, col="displacement")
     return
 
 
 @app.cell
 def _(X, scatter_plot, y):
-    scatter_plot(X.join(y), col="horsepower", y="mpg").save(
-        fp="horsepower_x_mpg.png", scale_factor=2
-    )
+    scatter_plot(X.join(y), col="horsepower", y="mpg")
     return
 
 
@@ -249,9 +263,7 @@ def _(X, scatter_plot, y):
 
 @app.cell
 def _(X, scatter_plot, y):
-    scatter_plot(X.join(y), col="model_year", y="mpg").save(
-        fp="model_year_x_mpg.png", scale_factor=2
-    )
+    scatter_plot(X.join(y), col="model_year", y="mpg")
     return
 
 
@@ -345,6 +357,18 @@ def _(
 
 
 @app.cell
+def _(X_train):
+    X_train
+    return
+
+
+@app.cell
+def _(pre_processed_train):
+    pre_processed_train
+    return
+
+
+@app.cell
 def _(X_test, X_train, pd, pre_processor):
     pre_processed_train = pd.DataFrame(
         data=pre_processor.fit_transform(X=X_train),
@@ -416,11 +440,6 @@ def _(
 @app.cell
 def _(training_metrics):
     training_metrics()
-    return
-
-
-@app.cell
-def _():
     return
 
 

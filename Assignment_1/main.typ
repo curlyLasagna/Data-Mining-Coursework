@@ -11,7 +11,7 @@
         ),
     ),
     index-terms: ("regression", "automobile", "cars"),
-    // bibliography: bibliography("refs.bib"),
+    bibliography: bibliography("refs.bib"),
     figure-supplement: [Fig.],
 )
 
@@ -21,7 +21,7 @@ Gasoline is both expensive and environmentally damaging, making fuel efficiency 
 
 = Dataset
 
-The dataset is a modified version from Carnegie Mellon University's StatLib dataset. Each row contains the following vehicle information:
+The dataset is a modified version from Carnegie Mellon University's StatLib dataset @auto_mpg_9. Each row contains the following vehicle information:
 
 - `horsepower`: Enging power output
 - `weight`: Vehicle mass
@@ -56,9 +56,13 @@ Scatter plots were generated to explore relationships between the target variabl
 
 = Data Preprocessing
 
+== Encoding
+
+The number of cylinders, the model year and the origin of the car are all integer variables but they weren't continuous and had little cardinality, except for the model year, so we figured we could apply ordinal encoding for these features to preseve the meaningful order in the data. Transforming these features should improve the model's performance.
+
 == Normalizing numerical features
 
-We want to set a standard value for numerical values to allow features with different magnitudes to contribute the same impact. I took features of type float such as displacement, horsepower and acceleration to get standardized.
+We want to set a standard value for numerical values to allow features with different magnitudes to contribute the same impact. We standardized the numerical variables: displacement, horsepower, and acceleration using the z-score method.
 
 == Data Binning
 
@@ -78,6 +82,8 @@ $sum_(i=1)^k sum_(x in C_i) || x - mu_i||^2$
 )
 
 Looking at the plot, we can estimate that 4 would be the optimal value of clusters to set for K-means. We utilized Sklearn's `KBinsDiscretizer` to perform both types of binning by setting the keyword argument `strategy` to `uniform` or `kmeans`.
+
+The data was binned using one-hot encoding, which resulted in 8 extra features added to the dataset using the equal width binning technique and 3 extra features added using the clustering binning technique.
 
 == Transforming a feature with non-normal distribution
 
@@ -106,8 +112,6 @@ I applied natural log, square root and inverse square root transformations to th
     caption: [Inverse square root transformation normal QQ plot]
 )
 
-
-
 Visually, the normal QQ plot from a log transformation is the closest to matching the normal distribution, so for our data pre-processing step, we'll apply log transformation to the displacement feature.
 
 = Regression Analysis
@@ -131,4 +135,6 @@ We wanted to see if the binning method chosen made a difference in the model's p
 
 = Conclusion
 
-Our analysis shows how a vehicle's features are significant predictors of miles per gallon. By experimenting with different data preprocessing methodologies and constructing a linear regression model, we achieved a model with a respectable $R^2$ score and low mean absolute error, which indicates
+Our analysis shows how a vehicle's features are significant predictors of miles per gallon. By experimenting with different data preprocessing methodologies such as normalization, binning and distribution transformation to improve model performance, we achieved a linear regression model with a respectable $R^2$ score and low mean absolute error, which indicates our model can predict a vehicle's mpg fairly well.
+
+In comparing distribution transformation, we found that log transformation gave us a result that closely resembles a normal distribution through comparing the normal QQ plot of each transformation. This improvements in normality is a benefit to the regression model since linear models perform much better when the features more closely resemeble a normal distribution and with outliers mitigated. It made sense that log transformation was the most effective as displacement is a postively skewed feature.
