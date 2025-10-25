@@ -7,3 +7,5 @@ devenv.local.nix
 
 # pre-commit
 .pre-commit-config.yaml
+/Assignment_1/__marimo__/
+/Assignment_1/.auctex-auto/
