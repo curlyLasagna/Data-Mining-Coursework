@@ -788,6 +788,12 @@ def _(LogisticRegression):
 
 
 @app.cell
+def _(X_test, X_train, features, log_coef, logistic_regression, y_train):
+    log_coef(clf=logistic_regression(X_train, y_train, X_test)[1], df=features)
+    return
+
+
+@app.cell
 def _(mo):
     mo.md(r"""### Random Forest""")
     return
@@ -807,6 +813,17 @@ def _(RandomForestClassifier):
 
 
 @app.cell
+def _(X_test, X_train, features, pd, random_forest, y_train):
+    pd.DataFrame(
+        {
+            "feature": features.columns,
+            "importance": random_forest(X_train, y_train, X_test)[1].feature_importances_
+        }
+    )
+    return
+
+
+@app.cell
 def _(mo):
     mo.md(r"""### Gradient Boost""")
     return
@@ -823,6 +840,17 @@ def _(GradientBoostingClassifier):
 
         return predictions, model
     return (gradient_boost,)
+
+
+@app.cell
+def _(X_test, X_train, features, gradient_boost, pd, y_train):
+    pd.DataFrame(
+        {
+            "feature": features.columns,
+            "importance": gradient_boost(X_train, y_train, X_test)[1].feature_importances_
+        }
+    )
+    return
 
 
 @app.cell
@@ -885,8 +913,12 @@ def _(np, pd):
         cols = df.columns
         mean = np.mean(np.abs(coef_matrix), axis=0)
 
-        coef_df = pd.DataFrame(coef_matrix, index=classes, columns=cols)
-        return coef_df
+        # coef_df = pd.DataFrame(coef_matrix, index=classes, columns=cols)
+    
+        return pd.DataFrame({
+            'feature': cols,
+            'importance': mean
+        })
     return (log_coef,)
 
 
@@ -929,9 +961,42 @@ def _(alt, pd):
 
         # Combine the heatmap and text layers, and configure the axis angle
         return (heatmap + text).configure_axis(
-            labelAngle=-45  # Tilt x-axis labels for better readability
+            # Tilt x-axis labels for better readability
+            labelAngle=-45
         )
-    return (log_coef_heatmap,)
+    return
+
+
+@app.cell
+def _(alt, pd):
+    def plot_feature_importance(df: pd.DataFrame) -> alt.Chart:
+        """
+        Plots a bar chart of feature importances using Altair.
+    
+        Args:
+            df (pd.DataFrame): DataFrame containing 'feature' and 'importance' columns.
+    
+        Returns:
+            alt.Chart: The Altair chart object.
+        """
+        chart = (
+            alt.Chart(df)
+            .mark_bar()
+            .encode(
+                y=alt.Y('importance:Q', title='Importance', sort='ascending'),
+                x=alt.X('feature:N', title='Feature', sort=None),
+                tooltip=['feature:N', 'importance:Q']
+            )
+            .properties(
+                title='Feature Importance',
+                width=600,
+                height=400
+            )
+            .interactive()
+        )
+    
+        return chart.configure_axis(labelAngle=-45)
+    return (plot_feature_importance,)
 
 
 @app.cell
@@ -940,13 +1005,49 @@ def _(
     X_train,
     features,
     log_coef,
-    log_coef_heatmap,
     logistic_regression,
+    plot_feature_importance,
     y_train,
 ):
-    log_coef_heatmap(
-        log_coef(features, logistic_regression(X_train, y_train, X_test)[1])
-    )
+    plot_feature_importance(log_coef(clf=logistic_regression(X_train, y_train, X_test)[1], df=features))
+    return
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    features,
+    gradient_boost,
+    pd,
+    plot_feature_importance,
+    y_train,
+):
+    plot_feature_importance(pd.DataFrame(
+        {
+            "feature": features.columns,
+            "importance": gradient_boost(X_train, y_train, X_test)[1].feature_importances_
+        }
+    ))
+    return
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    features,
+    pd,
+    plot_feature_importance,
+    random_forest,
+    y_train,
+):
+    plot_feature_importance(pd.DataFrame(
+        {
+            "feature": features.columns,
+            "importance": random_forest(X_train, y_train, X_test)[1].feature_importances_
+        }
+    ))
     return
 
 
