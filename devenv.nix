@@ -12,6 +12,7 @@
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+git 
     typst
     tinymist
     gyre-fonts
