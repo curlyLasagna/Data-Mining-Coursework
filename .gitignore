@@ -9,3 +9,5 @@ devenv.local.nix
 .pre-commit-config.yaml
 /Assignment_1/__marimo__/
 /Assignment_1/.auctex-auto/
+Assignment_2/__marimo__/session
+Assignment_2/.DS_Store
