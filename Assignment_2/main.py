@@ -11,8 +11,6 @@ def _():
     import altair as alt
     import pandas as pd
     from sklearn.model_selection import train_test_split
-    from sklearn.model_selection import cross_val_score
-    from sklearn.model_selection import KFold
     from sklearn.linear_model import LogisticRegression
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.ensemble import GradientBoostingClassifier
@@ -21,14 +19,16 @@ def _():
     from scipy.stats import chi2, chi2_contingency
     from typing import List, Optional
     import numpy as np
-    from sklearn.metrics import accuracy_score, recall_score, f1_score
+    from sklearn.metrics import accuracy_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
     return (
+        ConfusionMatrixDisplay,
         GradientBoostingClassifier,
         LogisticRegression,
         OrdinalEncoder,
         RandomForestClassifier,
         alt,
         chi2_contingency,
+        confusion_matrix,
         f1_score,
         fetch_ucirepo,
         mo,
@@ -817,7 +817,9 @@ def _(X_test, X_train, features, pd, random_forest, y_train):
     pd.DataFrame(
         {
             "feature": features.columns,
-            "importance": random_forest(X_train, y_train, X_test)[1].feature_importances_
+            "importance": random_forest(X_train, y_train, X_test)[
+                1
+            ].feature_importances_,
         }
     )
     return
@@ -847,7 +849,9 @@ def _(X_test, X_train, features, gradient_boost, pd, y_train):
     pd.DataFrame(
         {
             "feature": features.columns,
-            "importance": gradient_boost(X_train, y_train, X_test)[1].feature_importances_
+            "importance": gradient_boost(X_train, y_train, X_test)[
+                1
+            ].feature_importances_,
         }
     )
     return
@@ -914,11 +918,8 @@ def _(np, pd):
         mean = np.mean(np.abs(coef_matrix), axis=0)
 
         # coef_df = pd.DataFrame(coef_matrix, index=classes, columns=cols)
-    
-        return pd.DataFrame({
-            'feature': cols,
-            'importance': mean
-        })
+
+        return pd.DataFrame({"feature": cols, "importance": mean})
     return (log_coef,)
 
 
@@ -942,9 +943,7 @@ def _(alt, pd):
                     alt.Tooltip("Coefficient", format=".2f"),
                 ],
             )
-            .properties(
-                title="Multi-Class Logistic Regression Coefficients"
-            )
+            .properties(title="Multi-Class Logistic Regression Coefficients")
         )
 
         heatmap = base.mark_rect().encode(
@@ -969,32 +968,19 @@ def _(alt, pd):
 
 @app.cell
 def _(alt, pd):
-    def plot_feature_importance(df: pd.DataFrame) -> alt.Chart:
-        """
-        Plots a bar chart of feature importances using Altair.
-    
-        Args:
-            df (pd.DataFrame): DataFrame containing 'feature' and 'importance' columns.
-    
-        Returns:
-            alt.Chart: The Altair chart object.
-        """
+    def plot_feature_importance(df: pd.DataFrame, algo: str) -> alt.Chart:
         chart = (
             alt.Chart(df)
             .mark_bar()
             .encode(
-                y=alt.Y('importance:Q', title='Importance', sort='ascending'),
-                x=alt.X('feature:N', title='Feature', sort=None),
-                tooltip=['feature:N', 'importance:Q']
+                y=alt.Y("importance:Q", title="Importance", sort="ascending"),
+                x=alt.X("feature:N", title="Feature", sort=None),
+                tooltip=["feature:N", "importance:Q"],
             )
-            .properties(
-                title='Feature Importance',
-                width=600,
-                height=400
-            )
+            .properties(title=f"Feature Importance ({algo})", width=600, height=400)
             .interactive()
         )
-    
+
         return chart.configure_axis(labelAngle=-45)
     return (plot_feature_importance,)
 
@@ -1009,7 +995,10 @@ def _(
     plot_feature_importance,
     y_train,
 ):
-    plot_feature_importance(log_coef(clf=logistic_regression(X_train, y_train, X_test)[1], df=features))
+    plot_feature_importance(
+        log_coef(clf=logistic_regression(X_train, y_train, X_test)[1], df=features),
+        algo="Logistic Regression"
+    ).save(fp="log_res_features.png", scale_factor=2)
     return
 
 
@@ -1023,12 +1012,17 @@ def _(
     plot_feature_importance,
     y_train,
 ):
-    plot_feature_importance(pd.DataFrame(
-        {
-            "feature": features.columns,
-            "importance": gradient_boost(X_train, y_train, X_test)[1].feature_importances_
-        }
-    ))
+    plot_feature_importance(
+        pd.DataFrame(
+            {
+                "feature": features.columns,
+                "importance": gradient_boost(X_train, y_train, X_test)[
+                    1
+                ].feature_importances_,
+            }
+        ),
+        algo="Gradient Boost"
+    ).save(fp="gradboost_features.png", scale_factor=2)
     return
 
 
@@ -1042,12 +1036,90 @@ def _(
     random_forest,
     y_train,
 ):
-    plot_feature_importance(pd.DataFrame(
-        {
-            "feature": features.columns,
-            "importance": random_forest(X_train, y_train, X_test)[1].feature_importances_
-        }
-    ))
+    plot_feature_importance(
+        pd.DataFrame(
+            {
+                "feature": features.columns,
+                "importance": random_forest(X_train, y_train, X_test)[
+                    1
+                ].feature_importances_,
+            }
+        ),
+        algo="Random Forest"
+    ).save(fp="random_forest_features.png", scale_factor=2)
+    return
+
+
+@app.cell
+def _(ConfusionMatrixDisplay, confusion_matrix, np):
+    def generate_confusion_matrix(y_true, y_pred):
+        cm = confusion_matrix(y_true, y_pred)
+        accuracy = np.trace(cm) / np.sum(cm)
+        return accuracy, ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=np.unique(y_true))
+    return (generate_confusion_matrix,)
+
+
+@app.cell
+def _(X_test, X_train, random_forest, y_test, y_train):
+    random_forest(X_train, y_train, X_test)[1].score(X_test, y_test)
+    return
+
+
+@app.cell
+def _(X_test, X_train, gradient_boost, y_test, y_train):
+    gradient_boost(X_train, y_train, X_test)[1].score(X_test, y_test)
+    return
+
+
+@app.cell
+def _(X_test, X_train, logistic_regression, y_test, y_train):
+    logistic_regression(X_train, y_train, X_test)[1].score(X_test, y_test)
+    return
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    generate_confusion_matrix,
+    logistic_regression,
+    y_test,
+    y_train,
+):
+    import matplotlib.pyplot as plt
+    generate_confusion_matrix(y_true=y_test, y_pred=logistic_regression(X_train, y_train, X_test)[0])[1].plot()
+    # plt.show()
+    plt.savefig("confusion_matrix_log_res.png")
+    return (plt,)
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    generate_confusion_matrix,
+    plt,
+    random_forest,
+    y_test,
+    y_train,
+):
+    generate_confusion_matrix(y_true=y_test, y_pred=random_forest(X_train, y_train, X_test)[0])[1].plot()
+    plt.savefig("confusion_matrix_random_forest.png")
+    return
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    generate_confusion_matrix,
+    gradient_boost,
+    plt,
+    y_test,
+    y_train,
+):
+    generate_confusion_matrix(y_true=y_test, y_pred=gradient_boost(X_train, y_train, X_test)[0])[1].plot()
+    plt.savefig("confusion_matrix_grad_boost.png")
     return
 
 
