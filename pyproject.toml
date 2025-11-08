@@ -8,6 +8,7 @@ dependencies = [
     "altair>=5.5.0",
     "ipython>=9.6.0",
     "marimo>=0.16.5",
+    "matplotlib>=3.10.7",
     "numpy>=2.3.3",
     "openai>=2.6.1",
     "pandas>=2.3.3",
