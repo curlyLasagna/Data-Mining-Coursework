@@ -1,4 +1,10 @@
-{ pkgs, lib, config, inputs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  inputs,
+  ...
+}:
 
 {
   # https://devenv.sh/basics/
@@ -6,9 +12,12 @@
 
   # https://devenv.sh/packages/
   packages = [ pkgs.git ];
+  languages.javascript = {
 
-  # https://devenv.sh/languages/
-  # languages.rust.enable = true;
+    # https://devenv.sh/languages/
+    enable = true;
+    pnpm.enable = true;
+  };
 
   # https://devenv.sh/processes/
   # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";
