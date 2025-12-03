@@ -12,7 +12,7 @@
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
-git 
+    git
     typst
     tinymist
     gyre-fonts
@@ -25,7 +25,7 @@ git
     uv = {
       enable = true;
       sync.enable = true;
-      sync.allExtras = true; # Sync dev dependencies
+      sync.allExtras = true;
     };
   };
 
