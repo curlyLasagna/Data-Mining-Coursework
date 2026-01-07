@@ -1,7 +1,7 @@
 [project]
 name = "cosc757-datamining"
 version = "0.1.0"
-description = "Add your description here"
+description = "COC 757 course Python environment"
 readme = "README.md"
 requires-python = ">=3.13.5"
 dependencies = [
@@ -15,12 +15,12 @@ dependencies = [
     "pandas>=2.3.3",
     "pyarrow>=22.0.0",
     "ruff>=0.14.1",
-    "scikit-fuzzy>=0.5.0",
     "scikit-learn>=1.7.2",
     "scipy>=1.16.2",
     "ucimlrepo>=0.0.7",
     "vegafusion>=2.0.3",
     "vl-convert-python>=1.8.0",
     "msgspec>=0.20.0",
-    "marimo>=0.18.1",
+    "marimo>=0.17.8",
+    "category-encoders>=2.9.0",
 ]

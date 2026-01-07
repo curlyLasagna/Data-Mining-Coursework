@@ -19,7 +19,7 @@
   ];
   languages.python = {
     enable = true;
-    version = "3.13.5";
+    version = "3.14.0";
     venv.enable = true;
 
     uv = {
